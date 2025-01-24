@@ -1,0 +1,15 @@
+from learning import TicTacToeAgent, play_against_self
+
+yo = TicTacToeAgent()
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+vals = play_against_self(yo)
+print(vals)
