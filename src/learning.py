@@ -62,11 +62,12 @@ class TicTacToeAgent:
         return action
 
 
-    def update_policy(self, state, action, reward):
+    def update_policy(self, state, action, reward, entropy_coef=0.01):
         """
         state: the game state
         action: the action that was taken
         reward: +1 if won, -1 if lost
+        entropy_coef: coefficient for entropy regularization
         """
         # Convert state to tensor
         state_tensor = torch.FloatTensor(state).unsqueeze(0)
@@ -78,8 +79,13 @@ class TicTacToeAgent:
         # Get log probability of the action that was taken
         log_prob = torch.log(probs[action])
         
-        # Calculate loss
-        loss = -log_prob * reward
+        # Calculate entropy: -sum(p * log(p))
+        entropy = -torch.sum(probs * torch.log(probs + 1e-10))
+        
+        # Calculate loss with entropy regularization
+        # We subtract entropy (negative sign) because we're minimizing loss 
+        # but want to maximize entropy
+        loss = -log_prob * reward - entropy_coef * entropy
         
         self.optimizer.zero_grad()
         loss.backward()
@@ -164,17 +170,3 @@ def play_against_opponent_agent(agent1, agent2):
         state = next_state
 
     return [experiences_agent1, experiences_agent2], env.winner == agent1_player
-
-
-def calculate_policy_loss(logits, action_taken, reward):
-    # Convert logits to probabilities
-    probs = torch.softmax(logits, dim=1)
-    
-    # Get log probability of the action we actually took
-    action_prob = probs[0, action_taken]  # [0] because batch size=1
-    log_prob = torch.log(action_prob)
-    
-    # Policy gradient loss: negative because we want to maximize reward
-    loss = -log_prob * reward
-    
-    return loss
