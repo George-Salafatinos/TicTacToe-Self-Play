@@ -8,7 +8,7 @@
 <body>
   <h1>Tic-Tac-Toe Trainer</h1>
   
-  <!-- Static 3x3 Board -->
+  <!-- Static 3x3 Board (still not interactive in this sprint) -->
   <div id="board">
     <div class="row">
       <div class="cell" id="cell-0"></div>
@@ -27,17 +27,27 @@
     </div>
   </div>
 
-  <!-- Placeholder for training options -->
+  <!-- Training Options -->
   <div id="options">
     <h2>Train Model</h2>
+    
     <label for="algorithm-select">Algorithm:</label>
     <select id="algorithm-select">
-      <option value="" disabled selected>Select an algorithm (later)</option>
+      <!-- Added 'random-search' as an option -->
+      <option value="" disabled selected>Select an algorithm</option>
+      <option value="random-search">Random Search</option>
+      <!-- We'll add more algorithms (REINFORCE, PPO, etc.) in future sprints -->
     </select>
-    
+    <br><br>
+
+    <label for="steps-input">Steps:</label>
+    <input type="number" id="steps-input" placeholder="e.g. 10" />
+    <br><br>
+
     <button id="train-button">Train</button>
+    <p id="train-status"></p>
   </div>
-  
+
   <script src="{{ url_for('static', filename='scripts/tictactoe.js') }}"></script>
 </body>
 </html>
