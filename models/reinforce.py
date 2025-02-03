@@ -4,7 +4,7 @@ import torch.optim as optim
 import random
 import time
 import os
-from utils.tic_tac_toe import TicTacToeEnv, available_moves, check_winner
+from utils.tic_tac_toe import TicTacToeEnv, available_moves
 
 class SimplePolicyNet(nn.Module):
     def __init__(self):
@@ -22,7 +22,16 @@ def board_to_tensor(board, player='X'):
     arr = [mapping[cell] for cell in board]
     return torch.tensor(arr, dtype=torch.float)
 
-def train_reinforce(steps=10, lr=0.01, gamma=0.85):
+def moving_average(values, window_size=50):
+    averaged = []
+    for i in range(len(values)):
+        start_index = max(0, i - window_size + 1)
+        window_vals = values[start_index:i+1]
+        avg = sum(window_vals) / len(window_vals)
+        averaged.append(avg)
+    return averaged
+
+def train_reinforce(steps=10, lr=0.02, gamma=0.5, model_name="unnamed"):
     policy = SimplePolicyNet()
     optimizer = optim.Adam(policy.parameters(), lr=lr)
     scores = []
@@ -46,6 +55,7 @@ def train_reinforce(steps=10, lr=0.01, gamma=0.85):
             action_dist = torch.distributions.Categorical(logits=masked_logits[0])
             action = action_dist.sample()
             log_prob = action_dist.log_prob(action)
+
             next_state, reward, done, info = env.step(action.item())
             if not done:
                 moves_o = available_moves(env.board)
@@ -55,6 +65,7 @@ def train_reinforce(steps=10, lr=0.01, gamma=0.85):
                     if info_o.get("winner") == 'O':
                         reward = -1
                         done = True
+
             log_probs.append(log_prob)
             rewards.append(reward)
 
@@ -65,21 +76,28 @@ def train_reinforce(steps=10, lr=0.01, gamma=0.85):
             returns.insert(0, G)
         returns = torch.tensor(returns, dtype=torch.float)
         returns = (returns - returns.mean()) / (returns.std() + 1e-8)
+
         policy_loss = []
         for lp, R in zip(log_probs, returns):
             policy_loss.append(-lp * R)
         policy_loss = torch.stack(policy_loss).sum()
+
         optimizer.zero_grad()
         policy_loss.backward()
         optimizer.step()
+
         final_reward = rewards[-1] if len(rewards) > 0 else 0
         if final_reward > 0:
             total_score += 1
         current_avg = total_score / (episode + 1)
         scores.append(current_avg)
 
-    model_filename = "reinforce_" + str(int(time.time())) + ".pth"
-    model_path = os.path.join("saved_models", model_filename)
+    # Smooth with a rolling average
+    scores = moving_average(scores, window_size=50)
+
+    timestamp = int(time.time())
+    filename = f"{model_name}_reinforce_{timestamp}.pth"
+    model_path = os.path.join("saved_models", filename)
     torch.save(policy.state_dict(), model_path)
 
     model_data = {
@@ -89,7 +107,6 @@ def train_reinforce(steps=10, lr=0.01, gamma=0.85):
     return model_data, scores
 
 def predict_reinforce(board, model_data):
-    from utils.tic_tac_toe import available_moves
     policy = SimplePolicyNet()
     model_path = model_data["model_path"]
     policy.load_state_dict(torch.load(model_path))

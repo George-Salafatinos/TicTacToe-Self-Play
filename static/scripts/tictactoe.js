@@ -3,14 +3,17 @@ console.log("tictactoe.js loaded");
 let currentBoard = ["", "", "", "", "", "", "", "", ""];
 let currentPlayer = "X";
 let selectedAlgorithm = "";
+let gameOver = false;
 
 async function trainModel() {
   const algorithmSelect = document.getElementById("algorithm-select");
+  const modelNameInput = document.getElementById("model-name-input");
   const stepsInput = document.getElementById("steps-input");
   const trainStatus = document.getElementById("train-status");
   const trainingChart = document.getElementById("training-chart");
 
   selectedAlgorithm = algorithmSelect.value;
+  const modelName = modelNameInput.value.trim() || "unnamed";
   const steps = parseInt(stepsInput.value) || 10;
 
   if (!selectedAlgorithm) {
@@ -27,12 +30,14 @@ async function trainModel() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         algorithm: selectedAlgorithm,
-        hyperparams: { steps: steps }
+        hyperparams: {
+          steps: steps,
+          model_name: modelName
+        }
       })
     });
     const data = await response.json();
-    trainStatus.textContent = data.message || "Training complete (no details).";
-
+    trainStatus.textContent = data.message || "Training complete.";
     if (data.chart_b64) {
       trainingChart.src = "data:image/png;base64," + data.chart_b64;
       trainingChart.style.display = "block";
@@ -40,7 +45,7 @@ async function trainModel() {
     console.log("Training details:", data.details);
   } catch (error) {
     console.error("Error during training:", error);
-    trainStatus.textContent = "Error during training. See console for details.";
+    trainStatus.textContent = "Error during training. See console.";
   }
 }
 
@@ -57,6 +62,10 @@ async function selectModel() {
       body: JSON.stringify({ algorithm: selectedAlgorithm })
     });
     const data = await resp.json();
+    if (data.algorithm) {
+      // If the server reaffirms the algorithm, store it
+      selectedAlgorithm = data.algorithm;
+    }
     playStatus.textContent = data.message || "Model selected.";
   } catch (err) {
     console.error("Error selecting model:", err);
@@ -64,17 +73,66 @@ async function selectModel() {
   }
 }
 
+async function loadModelList() {
+  const selectEl = document.getElementById("model-file-select");
+  selectEl.innerHTML = '<option value="" disabled selected>-- fetching models --</option>';
+  try {
+    const resp = await fetch("/list-models");
+    const data = await resp.json();
+    if (!Array.isArray(data.files)) {
+      selectEl.innerHTML = '<option value="" disabled selected>-- no files --</option>';
+      return;
+    }
+    selectEl.innerHTML = '';
+    data.files.forEach(file => {
+      const opt = document.createElement("option");
+      opt.value = file;
+      opt.textContent = file;
+      selectEl.appendChild(opt);
+    });
+  } catch (error) {
+    console.error("Error loading model list:", error);
+    selectEl.innerHTML = '<option value="" disabled selected>-- error --</option>';
+  }
+}
+
+async function loadDiskModel() {
+  const playStatus = document.getElementById("play-status");
+  const selectEl = document.getElementById("model-file-select");
+  const filename = selectEl.value;
+  if (!filename) {
+    playStatus.textContent = "Please select a model file first.";
+    return;
+  }
+  try {
+    const resp = await fetch("/select-model", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: filename })
+    });
+    const data = await resp.json();
+    if (data.algorithm) {
+      selectedAlgorithm = data.algorithm;
+    }
+    playStatus.textContent = data.message || "Model loaded from disk.";
+  } catch (error) {
+    console.error("Error loading disk model:", error);
+    playStatus.textContent = "Error loading disk model. See console.";
+  }
+}
+
 function onCellClick(event) {
   const cell = event.target;
   const index = parseInt(cell.dataset.index);
 
-  if (currentBoard[index] !== "" || currentPlayer !== "X") {
+  // If the game is over or the cell is occupied or it's not X's turn, do nothing
+  if (gameOver || currentBoard[index] !== "" || currentPlayer !== "X") {
     return;
   }
   currentBoard[index] = "X";
   cell.textContent = "X";
 
-  if (!isGameOver()) {
+  if (!checkGameStatus("X")) {
     currentPlayer = "O";
     modelMove();
   }
@@ -105,7 +163,8 @@ async function modelMove() {
         cell.textContent = "O";
       }
     }
-    if (!isGameOver()) {
+    checkGameStatus("O");
+    if (!gameOver) {
       currentPlayer = "X";
     }
   } catch (error) {
@@ -115,15 +174,21 @@ async function modelMove() {
   }
 }
 
-function isGameOver() {
+function checkGameStatus(playerMoved) {
   const playStatus = document.getElementById("play-status");
   const winner = checkWinner(currentBoard);
   if (winner) {
-    playStatus.textContent = "Game Over! Winner: " + winner;
+    if (winner === "X") {
+      playStatus.textContent = "You Win!";
+    } else {
+      playStatus.textContent = "You Lose!";
+    }
+    gameOver = true;
     return true;
   }
   if (!currentBoard.includes("")) {
-    playStatus.textContent = "Game Over! It's a draw.";
+    playStatus.textContent = "It's a draw.";
+    gameOver = true;
     return true;
   }
   return false;
@@ -143,15 +208,25 @@ function checkWinner(board) {
   return null;
 }
 
+function resetBoard() {
+  currentBoard = ["", "", "", "", "", "", "", "", ""];
+  currentPlayer = "X";
+  gameOver = false;
+  const playStatus = document.getElementById("play-status");
+  playStatus.textContent = "Board reset. Make a move!";
+  document.querySelectorAll(".cell").forEach(cell => {
+    cell.textContent = "";
+  });
+}
+
 window.addEventListener("DOMContentLoaded", () => {
-  const trainButton = document.getElementById("train-button");
-  trainButton.addEventListener("click", trainModel);
+  document.getElementById("train-button").addEventListener("click", trainModel);
+  document.getElementById("select-model-button").addEventListener("click", selectModel);
+  document.getElementById("load-model-list-button").addEventListener("click", loadModelList);
+  document.getElementById("load-disk-model-button").addEventListener("click", loadDiskModel);
+  document.getElementById("reset-button").addEventListener("click", resetBoard);
 
-  const selectModelButton = document.getElementById("select-model-button");
-  selectModelButton.addEventListener("click", selectModel);
-
-  const cells = document.querySelectorAll(".cell");
-  cells.forEach(cell => {
+  document.querySelectorAll(".cell").forEach(cell => {
     cell.addEventListener("click", onCellClick);
   });
 });
