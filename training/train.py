@@ -1,6 +1,7 @@
-from utils.plot import plot_training_curve
+from utils.plot import plot_training_curve, plot_score_and_loss
 from models.random_search import train_random_search, predict_random_search
 from models.reinforce import train_reinforce, predict_reinforce
+from models.ppo import train_ppo, predict_ppo
 
 ACTIVE_MODELS = {}
 
@@ -15,7 +16,7 @@ def train_selected_model(algorithm_name, hyperparams):
         trained_model, avg_scores = train_random_search(steps=steps)
         chart_b64 = plot_training_curve(
             avg_scores,
-            title=f"Random Search (Agent=O?) - {model_name} vs {opponent}"
+            title=f"Random Search (Agent=O) - {model_name} vs {opponent}"
         )
         ACTIVE_MODELS[algorithm_name] = trained_model
         return {
@@ -29,15 +30,15 @@ def train_selected_model(algorithm_name, hyperparams):
         }
 
     elif algorithm_name == "reinforce":
-        trained_model, scores = train_reinforce(
+        trained_model, (scores, losses) = train_reinforce(
             steps=steps,
             lr=lr,
             gamma=gamma,
             model_name=model_name,
             opponent=opponent
         )
-        chart_b64 = plot_training_curve(
-            scores,
+        chart_b64 = plot_score_and_loss(
+            scores, losses,
             title=f"REINFORCE (Agent=O) - {model_name} vs {opponent}"
         )
         ACTIVE_MODELS[algorithm_name] = trained_model
@@ -46,6 +47,29 @@ def train_selected_model(algorithm_name, hyperparams):
             "hyperparams": hyperparams,
             "model_info": {
                 "algorithm": "reinforce",
+                "saved_path": trained_model["model_path"]
+            },
+            "chart_b64": chart_b64
+        }
+
+    elif algorithm_name == "ppo":
+        trained_model, (scores, losses) = train_ppo(
+            steps=steps,
+            lr=lr,
+            gamma=gamma,
+            model_name=model_name,
+            opponent=opponent
+        )
+        chart_b64 = plot_score_and_loss(
+            scores, losses,
+            title=f"PPO (Agent=O) - {model_name} vs {opponent}"
+        )
+        ACTIVE_MODELS[algorithm_name] = trained_model
+        return {
+            "algorithm": algorithm_name,
+            "hyperparams": hyperparams,
+            "model_info": {
+                "algorithm": "ppo",
                 "saved_path": trained_model["model_path"]
             },
             "chart_b64": chart_b64
@@ -65,4 +89,6 @@ def predict_move(algorithm_name, board_state):
         return predict_random_search(board_state, model_data)
     if algorithm_name == "reinforce":
         return predict_reinforce(board_state, model_data)
+    if algorithm_name == "ppo":
+        return predict_ppo(board_state, model_data)
     return None
