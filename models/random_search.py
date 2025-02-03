@@ -1,26 +1,25 @@
 import random
-from utils.tictactoe import TicTacToeEnv, available_moves
+from utils.tic_tac_toe import TicTacToeEnv, available_moves
 
 def train_random_search(steps=10):
     """
     A toy 'random search' approach for demonstration.
-    We'll just simulate some games and pick random actions.
-    This doesn't really "learn," but we'll pretend by returning pseudo-results.
-
-    steps: Number of simulated iterations to 'search' for best strategy.
-    Returns a dict representing the 'trained model'.
+    We'll accumulate a 'score' each iteration.
+    Instead of returning raw 0/1 for each step,
+    we'll keep a running average for a smoother plot.
     """
     env = TicTacToeEnv()
-
+    
+    avg_scores = []  # cumulative average score
     best_score = -999
-    best_params = {"random_seed": 42}  # Fake param store
+    best_params = {"random_seed": 42}
 
+    total_score = 0.0  # running sum of scores over iterations
     for i in range(steps):
-        # "Simulate" a new random seed each iteration
+        # Try a new random seed
         candidate_seed = random.randint(0, 100000)
         random.seed(candidate_seed)
 
-        # Just run one game randomly, track if we got a 'win'
         env.reset()
         done = False
         while not done:
@@ -30,22 +29,24 @@ def train_random_search(steps=10):
             action = random.choice(moves)
             next_state, reward, done, info = env.step(action)
 
-        # If X or O won with our random seed, treat that as a 'score'
-        # This is purely for demonstration
+        # Check winner
         winner = info.get("winner", None)
-        if winner == 'X':
-            score = 1
-        else:
-            score = 0
+        # For demonstration: if 'X' won, we treat it as a 1, else 0.
+        score = 1 if winner == 'X' else 0
+
+        total_score += score
+        current_avg = total_score / (i + 1)
+        avg_scores.append(current_avg)
 
         if score > best_score:
             best_score = score
             best_params = {"random_seed": candidate_seed}
 
-    # Return something that represents our "best found params"
     trained_model = {
         "algorithm": "random-search",
         "best_params": best_params,
         "best_score": best_score
     }
-    return trained_model
+
+    # Return the trained model and the average scores
+    return trained_model, avg_scores

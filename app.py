@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import os
 
-# Import training function from the new "training" folder
 from training.train import train_selected_model
 
 app = Flask(__name__)
@@ -20,15 +19,17 @@ def train_model():
     if not algorithm:
         return jsonify({"message": "No algorithm specified"}), 400
 
-    # Call training orchestrator
     result = train_selected_model(algorithm, hyperparams)
+
+    # If there's a chart in base64, add it to the JSON response
+    chart_b64 = result.get("chart_b64", None)
 
     return jsonify({
         "message": "Training complete!",
-        "details": result
+        "details": result,
+        "chart_b64": chart_b64
     })
 
 if __name__ == "__main__":
-    # Ensure training folder exists for saved models (if you save them)
     os.makedirs("saved_models", exist_ok=True)
     app.run(debug=True)
