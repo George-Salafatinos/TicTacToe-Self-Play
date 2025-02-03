@@ -50,3 +50,19 @@ def train_random_search(steps=10):
 
     # Return the trained model and the average scores
     return trained_model, avg_scores
+
+
+def predict_random_search(board, model_data):
+    """
+    'Infer' a move based on the stored best seed from training.
+    For demonstration, we set the random seed to 'best_seed'
+    and pick a random available move. 
+    """
+    # Use the best seed from training
+    best_seed = model_data.get("best_params", {}).get("random_seed", 42)
+    random.seed(best_seed)
+
+    moves = available_moves(board)
+    if not moves:
+        return None  # no moves available
+    return random.choice(moves)
