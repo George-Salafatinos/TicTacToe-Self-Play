@@ -8,7 +8,6 @@
 <body>
   <h1>Tic-Tac-Toe Trainer</h1>
   
-  <!-- Static 3x3 Board (now clickable in JS) -->
   <div id="board">
     <div class="row">
       <div class="cell" id="cell-0" data-index="0"></div>
@@ -27,14 +26,13 @@
     </div>
   </div>
 
-  <!-- Training Options -->
   <div id="options">
     <h2>Train Model</h2>
-    
     <label for="algorithm-select">Algorithm:</label>
     <select id="algorithm-select">
       <option value="" disabled selected>Select an algorithm</option>
       <option value="random-search">Random Search</option>
+      <option value="reinforce">REINFORCE</option>
     </select>
     <br><br>
 

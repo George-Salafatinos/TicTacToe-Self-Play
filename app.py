@@ -29,25 +29,15 @@ def train_model():
 
 @app.route("/select-model", methods=["POST"])
 def select_model():
-    """
-    For simplicity, let's just store the selected algorithm in a session variable or memory.
-    We'll assume the user chooses 'random-search' after training, or in general.
-    """
     data = request.json
     algorithm = data.get("algorithm", "")
     if not algorithm:
         return jsonify({"message": "No algorithm selected"}), 400
 
-    # In a more complex scenario, we might check if the model is actually trained or not.
-    return jsonify({"message": f"Model {algorithm} is selected and ready to play!"})
+    return jsonify({"message": f"Model '{algorithm}' is selected and ready to play!"})
 
 @app.route("/model-move", methods=["POST"])
 def model_move():
-    """
-    Receives the current board state from the front-end,
-    calls predict_move to get the chosen action, 
-    returns the action (index) to the client.
-    """
     data = request.json
     algorithm = data.get("algorithm", "")
     board_state = data.get("board", [])

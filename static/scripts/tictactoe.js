@@ -1,10 +1,9 @@
 console.log("tictactoe.js loaded");
 
 let currentBoard = ["", "", "", "", "", "", "", "", ""];
-let currentPlayer = "X"; // We'll assume user starts as 'X'
+let currentPlayer = "X";
 let selectedAlgorithm = "";
 
-// Training function triggered by "Train" button
 async function trainModel() {
   const algorithmSelect = document.getElementById("algorithm-select");
   const stepsInput = document.getElementById("steps-input");
@@ -31,7 +30,6 @@ async function trainModel() {
         hyperparams: { steps: steps }
       })
     });
-
     const data = await response.json();
     trainStatus.textContent = data.message || "Training complete (no details).";
 
@@ -39,7 +37,6 @@ async function trainModel() {
       trainingChart.src = "data:image/png;base64," + data.chart_b64;
       trainingChart.style.display = "block";
     }
-
     console.log("Training details:", data.details);
   } catch (error) {
     console.error("Error during training:", error);
@@ -47,15 +44,12 @@ async function trainModel() {
   }
 }
 
-// SELECT MODEL
 async function selectModel() {
   const playStatus = document.getElementById("play-status");
-
   if (!selectedAlgorithm) {
     playStatus.textContent = "No model trained or selected. Train first.";
     return;
   }
-
   try {
     const resp = await fetch("/select-model", {
       method: "POST",
@@ -70,32 +64,24 @@ async function selectModel() {
   }
 }
 
-// Click handler for board cells
 function onCellClick(event) {
   const cell = event.target;
   const index = parseInt(cell.dataset.index);
 
-  // If cell already occupied or it's not X's turn, do nothing
   if (currentBoard[index] !== "" || currentPlayer !== "X") {
     return;
   }
-
-  // Place 'X'
   currentBoard[index] = "X";
   cell.textContent = "X";
 
-  // Check if the game is over or we need O's move
   if (!isGameOver()) {
     currentPlayer = "O";
     modelMove();
   }
 }
 
-// Ask the model to move
 async function modelMove() {
   const playStatus = document.getElementById("play-status");
-
-  // Send current board to server
   try {
     const response = await fetch("/model-move", {
       method: "POST",
@@ -106,13 +92,11 @@ async function modelMove() {
       })
     });
     const data = await response.json();
-
     if (data.error) {
       playStatus.textContent = "Model move error: " + data.error;
-      currentPlayer = "X"; // revert turn so user can continue
+      currentPlayer = "X";
       return;
     }
-
     const moveIndex = data.move;
     if (moveIndex !== null && moveIndex !== undefined) {
       currentBoard[moveIndex] = "O";
@@ -121,36 +105,30 @@ async function modelMove() {
         cell.textContent = "O";
       }
     }
-
-    // Check if game is over
     if (!isGameOver()) {
       currentPlayer = "X";
     }
-
   } catch (error) {
     console.error("Error during model move:", error);
     playStatus.textContent = "Error during model move. See console.";
-    currentPlayer = "X"; // revert turn
+    currentPlayer = "X";
   }
 }
 
-// Basic function to check if game is over
 function isGameOver() {
   const playStatus = document.getElementById("play-status");
-  // check winner or draw
   const winner = checkWinner(currentBoard);
   if (winner) {
-    playStatus.textContent = `Game Over! Winner: ${winner}`;
+    playStatus.textContent = "Game Over! Winner: " + winner;
     return true;
   }
   if (!currentBoard.includes("")) {
-    playStatus.textContent = `Game Over! It's a draw.`;
+    playStatus.textContent = "Game Over! It's a draw.";
     return true;
   }
   return false;
 }
 
-// Basic logic for checking winner on front-end
 function checkWinner(board) {
   const lines = [
     [0,1,2], [3,4,5], [6,7,8],
@@ -165,7 +143,6 @@ function checkWinner(board) {
   return null;
 }
 
-// Attach event listeners after DOM loads
 window.addEventListener("DOMContentLoaded", () => {
   const trainButton = document.getElementById("train-button");
   trainButton.addEventListener("click", trainModel);
@@ -173,7 +150,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const selectModelButton = document.getElementById("select-model-button");
   selectModelButton.addEventListener("click", selectModel);
 
-  // Board clicks
   const cells = document.querySelectorAll(".cell");
   cells.forEach(cell => {
     cell.addEventListener("click", onCellClick);

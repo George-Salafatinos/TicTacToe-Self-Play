@@ -82,3 +82,6 @@ env/
 venv/
 .env/
 .venv/
+
+# Data
+saved_models/
