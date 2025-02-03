@@ -7,14 +7,21 @@ let gameOver = false;
 
 async function trainModel() {
   const algorithmSelect = document.getElementById("algorithm-select");
+  const opponentSelect = document.getElementById("opponent-select");
   const modelNameInput = document.getElementById("model-name-input");
   const stepsInput = document.getElementById("steps-input");
+  const lrInput = document.getElementById("lr-input");
+  const gammaInput = document.getElementById("gamma-input");
+
   const trainStatus = document.getElementById("train-status");
   const trainingChart = document.getElementById("training-chart");
 
   selectedAlgorithm = algorithmSelect.value;
+  const opponent = opponentSelect.value;
   const modelName = modelNameInput.value.trim() || "unnamed";
   const steps = parseInt(stepsInput.value) || 10;
+  const lr = lrInput.value.trim() || "0.01";
+  const gamma = gammaInput.value.trim() || "0.99";
 
   if (!selectedAlgorithm) {
     trainStatus.textContent = "Please select an algorithm before training.";
@@ -32,7 +39,10 @@ async function trainModel() {
         algorithm: selectedAlgorithm,
         hyperparams: {
           steps: steps,
-          model_name: modelName
+          model_name: modelName,
+          opponent: opponent,
+          lr: lr,
+          gamma: gamma
         }
       })
     });
@@ -63,7 +73,6 @@ async function selectModel() {
     });
     const data = await resp.json();
     if (data.algorithm) {
-      // If the server reaffirms the algorithm, store it
       selectedAlgorithm = data.algorithm;
     }
     playStatus.textContent = data.message || "Model selected.";
@@ -124,14 +133,11 @@ async function loadDiskModel() {
 function onCellClick(event) {
   const cell = event.target;
   const index = parseInt(cell.dataset.index);
-
-  // If the game is over or the cell is occupied or it's not X's turn, do nothing
   if (gameOver || currentBoard[index] !== "" || currentPlayer !== "X") {
     return;
   }
   currentBoard[index] = "X";
   cell.textContent = "X";
-
   if (!checkGameStatus("X")) {
     currentPlayer = "O";
     modelMove();

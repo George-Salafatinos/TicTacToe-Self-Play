@@ -29,7 +29,8 @@
   <p id="play-status"></p>
 
   <div id="options">
-    <h2>Train Model</h2>
+    <h2>Train Model (Agent as O)</h2>
+    
     <label for="algorithm-select">Algorithm:</label>
     <select id="algorithm-select">
       <option value="" disabled selected>Select an algorithm</option>
@@ -38,12 +39,28 @@
     </select>
     <br><br>
 
+    <label for="opponent-select">Opponent (X):</label>
+    <select id="opponent-select">
+      <option value="random" selected>Random Opponent</option>
+      <option value="self-play">Self-Play</option>
+    </select>
+    <br><br>
+
     <label for="model-name-input">Model Name:</label>
-    <input type="text" id="model-name-input" placeholder="e.g. MyFirstModel" />
+    <input type="text" id="model-name-input" placeholder="e.g. MySecondPlayerModel" />
     <br><br>
 
     <label for="steps-input">Steps:</label>
     <input type="number" id="steps-input" placeholder="e.g. 50" />
+    <br><br>
+
+    <!-- Additional hyperparams for REINFORCE only (ignored by random-search) -->
+    <label for="lr-input">Learning Rate (LR):</label>
+    <input type="text" id="lr-input" placeholder="e.g. 0.01" />
+    <br><br>
+
+    <label for="gamma-input">Discount Factor (Gamma):</label>
+    <input type="text" id="gamma-input" placeholder="e.g. 0.99" />
     <br><br>
 
     <button id="train-button">Train</button>
