@@ -13,10 +13,10 @@ from utils.tic_tac_toe import TicTacToeEnv, available_moves
 
 class CustomPolicyNet(nn.Module):
     """
-    A flexible policy network for Tic-Tac-Toe agent O, allowing different hidden layer sizes.
+    A flexible policy network for Tic-Tac-Toe, allowing different hidden layer sizes.
     Example:
-        hidden_sizes=[32] creates a net (9 -> 32 -> 9).
-        hidden_sizes=[32, 32] creates (9 -> 32 -> 32 -> 9), etc.
+        hidden_sizes=[32] -> (9 -> 32 -> 9).
+        hidden_sizes=[32, 32] -> (9 -> 32 -> 32 -> 9), etc.
     """
     def __init__(self, hidden_sizes=None):
         super().__init__()
@@ -24,24 +24,24 @@ class CustomPolicyNet(nn.Module):
             hidden_sizes = [32]
 
         layers = []
-        input_dim = 9  # board has 9 cells
+        input_dim = 9  # 9 board cells
         for h in hidden_sizes:
             layers.append(nn.Linear(input_dim, h))
             layers.append(nn.ReLU())
             input_dim = h
-        # final layer outputs 9 logits (one per possible action)
-        layers.append(nn.Linear(input_dim, 9))
+        layers.append(nn.Linear(input_dim, 9))  # final output: 9 logits
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.model(x)
 
 ########################################################
-# Helper function: interpret board for agent O
+# board_to_tensor_for_o / board_to_tensor_for_x
 ########################################################
 
 def board_to_tensor_for_o(board):
     """
+    If O is the agent:
     O => +1, X => -1, '' => 0
     """
     arr = []
@@ -49,6 +49,21 @@ def board_to_tensor_for_o(board):
         if cell == 'O':
             arr.append(1)
         elif cell == 'X':
+            arr.append(-1)
+        else:
+            arr.append(0)
+    return torch.tensor(arr, dtype=torch.float)
+
+def board_to_tensor_for_x(board):
+    """
+    If X is the agent:
+    X => +1, O => -1, '' => 0
+    """
+    arr = []
+    for cell in board:
+        if cell == 'X':
+            arr.append(1)
+        elif cell == 'O':
             arr.append(-1)
         else:
             arr.append(0)
@@ -80,140 +95,241 @@ def train_reinforce(
     hidden_sizes=None
 ):
     """
-    The agent is O. Opponent (X) can be 'random' or 'self-play' (though
-    here we just do random X to keep it simpler).
-
+    We train an agent O. Opponent can be:
+      - 'random'   => X is random
+      - 'self-play' => X is the same net as O (common approach: but here we keep it random for X in minimal code)
+      - 'co-play'  => X is a *separate* net also being trained at the same time.
     hidden_sizes: a list of integers for layer sizes, e.g. [32], [32, 32], etc.
-    We'll create a neural net with those hidden layers.
 
     Returns:
-      model_data (dict) - with keys {"algorithm": "reinforce", "model_path": ...}
-      (scores, losses)  - final arrays for each episode
+      model_data (dict) => { "algorithm": "reinforce", "model_path": ... }
+      (scores, losses)  => final arrays for each episode (from O's perspective).
     """
     if hidden_sizes is None:
         hidden_sizes = [32]
 
-    # Create the policy net
-    policy = CustomPolicyNet(hidden_sizes=hidden_sizes)
-    optimizer = optim.Adam(policy.parameters(), lr=lr)
+    # Create the policy net for O
+    policy_o = CustomPolicyNet(hidden_sizes=hidden_sizes)
+    optimizer_o = optim.Adam(policy_o.parameters(), lr=lr)
+
+
+    # If co-play, we need a separate net for X
+    if opponent == "co-play":
+        policy_x = CustomPolicyNet(hidden_sizes=hidden_sizes)
+        optimizer_x = optim.Adam(policy_x.parameters(), lr=lr)
+    else:
+        policy_x = None
+        optimizer_x = None
 
     env = TicTacToeEnv()
-    scores = []
-    losses = []
-    total_score = 0.0
+    scores_o = []   # O's sliding average of wins
+    losses_o = []   # O's policy losses
+    total_wins_o = 0.0  # count how many times O wins
 
     for episode in range(steps):
-        log_probs = []
-        rewards = []
-        env.reset()
+        # We'll track O's transitions:
+        log_probs_o = []
+        rewards_o = []
 
+        # If co-play, track X's transitions too:
+        log_probs_x = []
+        rewards_x = []
+
+        env.reset()
         done = False
+
         while not done:
             # X moves first
             if opponent == "random":
+                # random X
                 moves_x = available_moves(env.board)
                 if moves_x:
                     x_move = random.choice(moves_x)
                     _, rew_x, done_x, info_x = env.step(x_move)
                     if info_x.get("winner") == 'X':
-                        rewards.append(-1)  # O loses
-                        log_probs.append(torch.tensor(0.0))
+                        # O loses => reward_o=-1
+                        rewards_o.append(-1)
+                        log_probs_o.append(torch.tensor(0.0))
                         break
                     if done_x:
                         # draw
-                        rewards.append(0)
-                        log_probs.append(torch.tensor(0.0))
+                        rewards_o.append(0)
+                        log_probs_o.append(torch.tensor(0.0))
                         break
 
             elif opponent == "self-play":
-                # Minimal approach: still random for X
+                # Minimal code previously had random X as well.
+                # We'll keep it random unless you prefer the same net for X:
                 moves_x = available_moves(env.board)
                 if moves_x:
                     x_move = random.choice(moves_x)
                     _, rew_x, done_x, info_x = env.step(x_move)
                     if info_x.get("winner") == 'X':
-                        rewards.append(-1)
-                        log_probs.append(torch.tensor(0.0))
+                        rewards_o.append(-1)
+                        log_probs_o.append(torch.tensor(0.0))
                         break
                     if done_x:
-                        rewards.append(0)
-                        log_probs.append(torch.tensor(0.0))
+                        rewards_o.append(0)
+                        log_probs_o.append(torch.tensor(0.0))
                         break
+
+            elif opponent == "co-play":
+                # co-play => X is a separate net being trained.
+                state_x = board_to_tensor_for_x(env.board).unsqueeze(0)
+                logits_x = policy_x(state_x)
+                moves_x = available_moves(env.board)
+                if not moves_x:
+                    # it would be a draw
+                    rewards_o.append(0)
+                    log_probs_o.append(torch.tensor(0.0))
+
+                    rewards_x.append(0)
+                    log_probs_x.append(torch.tensor(0.0))
+                    break
+
+                mask_x = torch.zeros(9)
+                for mx in moves_x:
+                    mask_x[mx] = 1
+                masked_x = logits_x + (mask_x.unsqueeze(0) - 1) * 1e6
+                dist_x = torch.distributions.Categorical(logits=masked_x[0])
+                action_x = dist_x.sample()
+                log_prob_x = dist_x.log_prob(action_x)
+
+                _, rew_x, done_x, info_x = env.step(action_x.item())
+
+                # If X wins => O gets -1, X gets +1
+                if info_x.get("winner") == 'X':
+                    rewards_o.append(-1)
+                    log_probs_o.append(torch.tensor(0.0))
+                    rewards_x.append(1)
+                    log_probs_x.append(log_prob_x)
+                    break
+                elif done_x:
+                    # draw
+                    rewards_o.append(0)
+                    log_probs_o.append(torch.tensor(0.0))
+                    rewards_x.append(0)
+                    log_probs_x.append(log_prob_x)
+                    break
+                else:
+                    # game continues
+                    log_probs_x.append(log_prob_x)
+                    rewards_x.append(0)
 
             if env.is_done():
                 break
 
             # O's turn
             state_o = board_to_tensor_for_o(env.board).unsqueeze(0)
-            logits_o = policy(state_o)
+            logits_o_ = policy_o(state_o)
             moves_o = available_moves(env.board)
             if not moves_o:
                 # draw
-                rewards.append(0)
-                log_probs.append(torch.tensor(0.0))
+                rewards_o.append(0)
+                log_probs_o.append(torch.tensor(0.0))
+                if opponent == "co-play":
+                    # X's final reward is 0 as well
+                    rewards_x.append(0)
+                    log_probs_x.append(torch.tensor(0.0))
                 break
 
             mask_o = torch.zeros(9)
             for mo in moves_o:
                 mask_o[mo] = 1
-            masked_logits_o = logits_o + (mask_o.unsqueeze(0) - 1) * 1e6
+            masked_logits_o = logits_o_ + (mask_o.unsqueeze(0) - 1) * 1e6
             dist_o = torch.distributions.Categorical(logits=masked_logits_o[0])
             action_o = dist_o.sample()
-            log_prob_o = dist_o.log_prob(action_o)
+            log_prob_o_ = dist_o.log_prob(action_o)
 
             _, rew_o, done_o, info_o = env.step(action_o.item())
             if info_o.get("winner") == 'O':
-                rewards.append(1)
-                log_probs.append(log_prob_o)
+                # O wins
+                rewards_o.append(1)
+                log_probs_o.append(log_prob_o_)
+                if opponent == "co-play":
+                    # X gets -1
+                    rewards_x.append(-1)
+                    log_probs_x.append(torch.tensor(0.0))
                 break
             elif done_o:
                 # draw
-                rewards.append(0)
-                log_probs.append(log_prob_o)
+                rewards_o.append(0)
+                log_probs_o.append(log_prob_o_)
+                if opponent == "co-play":
+                    rewards_x.append(0)
+                    log_probs_x.append(torch.tensor(0.0))
                 break
             else:
                 # game continues
-                log_probs.append(log_prob_o)
-                rewards.append(0)
+                log_probs_o.append(log_prob_o_)
+                rewards_o.append(0)
+                if opponent == "co-play":
+                    # no immediate reward for X
+                    # do nothing additional here
+                    pass
 
-        # Compute returns
-        returns = []
-        G = 0
-        for r in reversed(rewards):
-            G = r + gamma * G
-            returns.insert(0, G)
-        returns = torch.tensor(returns, dtype=torch.float)
-        if len(returns) > 1:
-            returns = (returns - returns.mean()) / (returns.std() + 1e-8)
+        ########################################################
+        # End of episode => compute returns & do updates
+        ########################################################
+        # O's update
+        returns_o = []
+        G_o = 0
+        for r in reversed(rewards_o):
+            G_o = r + gamma * G_o
+            returns_o.insert(0, G_o)
+        returns_o = torch.tensor(returns_o, dtype=torch.float)
+        if len(returns_o) > 1:
+            returns_o = (returns_o - returns_o.mean()) / (returns_o.std() + 1e-8)
 
-        policy_loss = torch.stack([-lp * R for lp, R in zip(log_probs, returns)]).sum()
+        policy_loss_o = torch.tensor(0.0)
+        for lp, R in zip(log_probs_o, returns_o):
+            policy_loss_o = policy_loss_o + (-lp * R)
 
-        optimizer.zero_grad()
-        policy_loss.backward()
-        optimizer.step()
+        optimizer_o.zero_grad()
+        policy_loss_o.backward()
+        optimizer_o.step()
 
-        # final reward
-        final_reward = rewards[-1] if len(rewards) > 0 else 0
-        if final_reward > 0:
-            total_score += 1
-        avg_score = total_score / (episode + 1)
-        scores.append(avg_score)
-        losses.append(policy_loss.item())
+        # X's update if co-play
+        if opponent == "co-play":
+            returns_x = []
+            G_x = 0
+            for r in reversed(rewards_x):
+                G_x = r + gamma * G_x
+                returns_x.insert(0, G_x)
+            returns_x = torch.tensor(returns_x, dtype=torch.float)
+            if len(returns_x) > 1:
+                returns_x = (returns_x - returns_x.mean()) / (returns_x.std() + 1e-8)
 
-    # sliding-average the scores
-    scores = moving_average(scores, window_size=50)
+            policy_loss_x = torch.tensor(0.0)
+            for lp, R in zip(log_probs_x, returns_x):
+                policy_loss_x = policy_loss_x + (-lp * R)
 
-    # Save the model to disk
+            optimizer_x.zero_grad()
+            policy_loss_x.backward()
+            optimizer_x.step()
+
+        # final reward for O
+        final_r_o = rewards_o[-1] if len(rewards_o) > 0 else 0
+        if final_r_o > 0:
+            total_wins_o += 1
+        avg_score_o = total_wins_o / (episode + 1)
+        scores_o.append(avg_score_o)
+        losses_o.append(policy_loss_o.item())
+
+    # sliding-average the scores from O's perspective
+    scores_o = moving_average(scores_o, window_size=50)
+
+    # Save O's net to disk
     timestamp = int(time.time())
     filename = f"{model_name}_reinforce_{timestamp}.pth"
     model_path = os.path.join("saved_models", filename)
-    torch.save(policy.state_dict(), model_path)
+    torch.save(policy_o.state_dict(), model_path)
 
     model_data = {
         "algorithm": "reinforce",
         "model_path": model_path
     }
-    return model_data, (scores, losses)
+    return model_data, (scores_o, losses_o)
 
 ########################################################
 
@@ -221,16 +337,13 @@ def predict_reinforce(board, model_data):
     """
     Inference for O.
     """
-    # Rebuild the same net. We'll assume hidden_sizes=[32] for loading if
-    # we didn't store them. For a real scenario, store hidden_sizes in model_data.
-    # For now, we do minimal approach:
-    policy = CustomPolicyNet(hidden_sizes=[32])  # or retrieve from model_data if we stored it
+    policy_o = CustomPolicyNet(hidden_sizes=[32])  # or read from model_data if you store hidden_sizes
     model_path = model_data["model_path"]
-    policy.load_state_dict(torch.load(model_path))
-    policy.eval()
+    policy_o.load_state_dict(torch.load(model_path))
+    policy_o.eval()
 
     state_o = board_to_tensor_for_o(board).unsqueeze(0)
-    logits_o = policy(state_o)
+    logits_o = policy_o(state_o)
     moves_o = available_moves(board)
     if not moves_o:
         return None
