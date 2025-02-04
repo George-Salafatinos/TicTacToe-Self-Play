@@ -25,7 +25,7 @@ This repository contains an educational and experimental tic-tac-toe environment
 ### 1. Training Against a Random Opponent
 If you train the model against a randomly choosing opponent, its accuracy will continue to climb and reach quite high. What you observe when you play against it, however, is that while it knows how to win, and will do so if you move randomly, it has no idea how to *prevent you* from winning, and we always go first, we can win almost every time.
 
-[imgs/random_opponent_win.png]
+![Alt text](imgs/random_opponent_win.png)
 
 
 ### 2. Training Against Itself (Self-Play)
@@ -38,21 +38,21 @@ Therefore we should try this solution: we train two distinct models at once. Tha
 ### 3. Hyperparameter Analysis (Self-Play)
 First, let's look at the charts though.
 
-[hyperparam_plots_self-play_reinforce/hyper_1_lr_gamma085.png]
-[hyperparam_plots_self-play_reinforce/hyper_2_lr_gamma085.png]
+![Alt text](hyperparam_plots_self-play_reinforce/hyper_1_lr_gamma085.png)
+![Alt text](hyperparam_plots_self-play_reinforce/hyper_2_lr_gamma085.png)
 
 We see gamma had little effect on the best learning rate for 800 steps, and that the best learning rate for these two gamma values seemed to be about .08, peaking at ~.5 win rate.
 
-[hyperparam_plots_self-play_ppo/hyper_3_gamma_lr001.png]
-[hyperparam_plots_self-play_ppo/hyper_4_gamma_lr008.png]
+![Alt text](hyperparam_plots_self-play_ppo/hyper_3_gamma_lr001.png)
+![Alt text](hyperparam_plots_self-play_ppo/hyper_4_gamma_lr008.png)
 
 We see that at learning rate .001, gamma mostly made no difference and win rate was hampered. But with .008, we got a competitive win rate of .5 with a gamma of .95. 
 
-[hyperparam_plots_self-play_reinforce/hyper_5_hidden_sizes.png]
+![Alt text](hyperparam_plots_self-play_reinforce/hyper_5_hidden_sizes.png)
 
 As one could predict, we increasing the size of the hidden layer generally improved the model, though with diminishing returns.
 
-[hyperparam_plots_self-play_reinforce/hyper_6_arch.png]
+![Alt text](hyperparam_plots_self-play_reinforce/hyper_6_arch.png)
 
 Interestingly, the number of layers had little affect overall, and if anything seemed only to reduce the performance.
 
@@ -65,14 +65,14 @@ Interestingly, the number of layers had little affect overall, and if anything s
 While our objective function may have become closer aligned with winning tic-tac-toe, co-play seemed to induce model collapse. I tried varying the optimizer from adam to SGD, in case adam was sending the learning rate too dommedly low levels, and this helped some, but still mostly led to collapse.
 
 Adam:
-[imgs/model_collapse_adam.png]
+![Alt text](imgs/model_collapse_adam.png)
 SGD:
-[imgs/model_collapse_sgd.png]
+![Alt text](imgs/model_collapse_sgd.png)
 
 Likewise, hyperparameter plots were significantly worse
-[hyperparam_plots_coplay_reinforce/hyper_1_lr_gamma085.png]
-[hyperparam_plots_coplay_reinforce/hyper_2_lr_gamma099.png]
-[hyperparam_plots_coplay_reinforce/hyper_3_gamma_lr001.png]
+![Alt text](hyperparam_plots_coplay_reinforce/hyper_1_lr_gamma085.png)
+![Alt text](hyperparam_plots_coplay_reinforce/hyper_2_lr_gamma099.png)
+![Alt text](hyperparam_plots_coplay_reinforce/hyper_3_gamma_lr001.png)
 
 ## Educational Takeaways
 - Simple RL Agents in a small game can produce interesting behaviors but quickly hit fundamental limits
