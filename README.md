@@ -39,12 +39,12 @@ Therefore we should try this solution: we train two distinct models at once. Tha
 First, let's look at the charts though.
 
 ![Alt text](hyperparam_plots_self-play_reinforce/hyper_1_lr_gamma085.png)
-![Alt text](hyperparam_plots_self-play_reinforce/hyper_2_lr_gamma085.png)
+![Alt text](hyperparam_plots_self-play_reinforce/hyper_2_lr_gamma099.png)
 
 We see gamma had little effect on the best learning rate for 800 steps, and that the best learning rate for these two gamma values seemed to be about .08, peaking at ~.5 win rate.
 
-![Alt text](hyperparam_plots_self-play_ppo/hyper_3_gamma_lr001.png)
-![Alt text](hyperparam_plots_self-play_ppo/hyper_4_gamma_lr008.png)
+![Alt text](hyperparam_plots_self-play_reinforce/hyper_3_gamma_lr001.png)
+![Alt text](hyperparam_plots_self-play_reinforce/hyper_4_gamma_lr008.png)
 
 We see that at learning rate .001, gamma mostly made no difference and win rate was hampered. But with .008, we got a competitive win rate of .5 with a gamma of .95. 
 
